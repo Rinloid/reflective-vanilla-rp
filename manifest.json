@@ -1,0 +1,17 @@
+{
+	"format_version": 1,
+	"header": {
+		"name": "Reflective Vanilla",
+		"uuid": "116947e5-a8ca-4dbd-8340-73bd2b1d84c2",
+		"version": [1, 0, 1],
+		"description": "Makes vanilla graphics reflective.\nTwitter: §b@MCH_YamaRin",
+		"min_engine_version": [1, 2, 6]
+	},
+	"modules": [
+		{
+			"type": "resources",
+			"uuid": "e006ed81-0ed7-45fa-8732-1d454283cfdc",
+			"version": [1, 0, 1]
+		}
+	]
+}

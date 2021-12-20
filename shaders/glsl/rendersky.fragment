@@ -1,0 +1,44 @@
+// __multiversion__
+// This signals the loading code to prepend either #version 100 or #version 300 es as apropriate.
+
+#include "fragmentVersionCentroid.h"
+#include "uniformShaderConstants.h"
+#include "util.h"
+
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+	#define hmp highp
+#else
+	#define hmp mediump
+#endif
+
+varying hmp vec3 skyPosition;
+
+uniform hmp float TOTAL_REAL_WORLD_TIME;
+uniform vec4 FOG_COLOR;
+uniform vec2 FOG_CONTROL;
+
+#include "preset.glsl"
+#include "commonfunctions.glsl"
+#include "stars.glsl"
+#include "sun_moon.glsl"
+#include "clouds.glsl"
+
+void main()
+{
+
+vec4 diffuse = vec4(1.0, 1.0, 1.0, 1.0);
+vec3 skyPos = skyPosition;
+vec3 reflectedCol = vec3(1.0, 1.0, 1.0);
+float time = getTime(FOG_COLOR);
+vec3 sunMoonPos = (time > 0.0 ? 1.0 : -1.0) * vec3(cos(time), sin(time), 0.0);
+float daylight = max(0.0, time);
+float set = min(smoothstep(0.0, 0.2, time), smoothstep(0.6, 0.3, time));
+float rain = mix(smoothstep(0.5, 0.3, FOG_CONTROL.x), 0.0, step(FOG_CONTROL.x, 0.0));
+
+#include "renderreflectedview.glsl"
+
+diffuse.rgb = reflectedCol.rgb;
+
+gl_FragColor = diffuse;
+
+}

@@ -1,0 +1,6 @@
+{
+  "cubemap": {
+    "vertexShader": "shaders/rendersky.vertex",
+    "fragmentShader": "shaders/rendersky.fragment"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "biomes": {
+    "swampland": {
+      "water_surface_color": "#4c6559",
+      "water_surface_transparency": 0.9,
+      "water_fog_color": "#4c6559",
+      "water_fog_distance": 8
+    },
+    "swampland_mutated": {
+      "water_surface_color": "#4c6156",
+      "water_surface_transparency": 0.9,
+      "water_fog_color": "#4c6156",
+      "water_fog_distance": 8
+    }
+  }
+}

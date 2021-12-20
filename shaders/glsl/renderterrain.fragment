@@ -1,0 +1,177 @@
+// __multiversion__
+// This signals the loading code to prepend either #version 100 or #version 300 es as apropriate.
+
+#include "fragmentVersionCentroid.h"
+
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+	#define hmp highp
+#else
+	#define hmp mediump
+#endif
+
+#if __VERSION__ >= 300
+	#ifndef BYPASS_PIXEL_SHADER
+		#if defined(TEXEL_AA) && defined(TEXEL_AA_FEATURE)
+			_centroid in highp vec2 uv0;
+			_centroid in highp vec2 uv1;
+		#else
+			_centroid in vec2 uv0;
+			_centroid in vec2 uv1;
+		#endif
+	#endif
+#else
+	#ifndef BYPASS_PIXEL_SHADER
+		varying vec2 uv0;
+		varying vec2 uv1;
+	#endif
+#endif
+
+varying vec4 color;
+flat varying float waterFlag;
+varying hmp vec3 cameraPosition;
+varying hmp vec3 worldPosition;
+
+#ifdef FOG
+varying float fogFactor;
+#endif
+
+#include "uniformShaderConstants.h"
+#include "util.h"
+
+LAYOUT_BINDING(0) uniform sampler2D TEXTURE_0;
+LAYOUT_BINDING(1) uniform sampler2D TEXTURE_1;
+LAYOUT_BINDING(2) uniform sampler2D TEXTURE_2;
+
+uniform hmp float TOTAL_REAL_WORLD_TIME;
+uniform vec4 FOG_COLOR;
+uniform vec2 FOG_CONTROL;
+
+#include "preset.glsl"
+#include "commonfunctions.glsl"
+#include "stars.glsl"
+#include "sun_moon.glsl"
+#include "clouds.glsl"
+
+void main()
+{
+#ifdef BYPASS_PIXEL_SHADER
+	gl_FragColor = vec4(0, 0, 0, 0);
+	return;
+#else
+
+
+#ifdef BLEND
+	const bool isBlend = true;
+#else
+	const bool isBlend = false;
+#endif
+
+vec3 worldNormal = 
+#ifdef FANCY
+	normalize(cross(dFdx(worldPosition), dFdy(worldPosition)));
+#else
+	vec3(0, 1, 0);
+#endif
+vec3 reflectPos = reflect(normalize(cameraPosition), worldNormal);
+float reflectance = 0.0;
+if (waterFlag > 0.5)
+{
+	reflectance = WATER_REFLECTANCE;
+} else if (isBlend)
+{
+	reflectance = ALPHA_BLENDED_BLOCKS_REFLECTANCE;
+}
+
+float time = getTime(FOG_COLOR);
+float daylight = max(0.0, time);
+float set = min(smoothstep(0.0, 0.2, time), smoothstep(0.6, 0.3, time));
+float nether = 
+#ifdef FOG
+	FOG_CONTROL.x / FOG_CONTROL.y;
+	nether = step(0.1, nether) - step(0.12,nether);
+#else
+	0.0;
+#endif
+float underwater =
+#ifdef FOG
+	step(FOG_CONTROL.x, 0.0);
+#else
+	0.0;
+#endif
+float rain = 
+#ifdef FOG
+	mix(smoothstep(0.5, 0.3, FOG_CONTROL.x), 0.0, underwater);
+#else
+	0.0;
+#endif
+
+#if USE_TEXEL_AA
+	vec4 diffuse = texture2D_AA(TEXTURE_0, uv0);
+#else
+	vec4 diffuse = texture2D(TEXTURE_0, uv0);
+#endif
+	
+#ifdef SEASONS_FAR
+	diffuse.a = 1.0;
+#endif
+
+#if USE_ALPHA_TEST
+	#ifdef ALPHA_TO_COVERAGE
+	#define ALPHA_THRESHOLD 0.05
+	#else
+	#define ALPHA_THRESHOLD 0.5
+	#endif
+	if(diffuse.a < ALPHA_THRESHOLD)
+		discard;
+#endif
+	
+vec4 inColor = color;
+
+#if defined(BLEND)
+	diffuse.a *= inColor.a;
+#endif
+
+#if !defined(ALWAYS_LIT)
+	diffuse *= texture2D( TEXTURE_1, uv1 );
+#endif
+
+#ifndef SEASONS
+	#if !USE_ALPHA_TEST && !defined(BLEND)
+		diffuse.a = inColor.a;
+	#endif
+	
+	diffuse.rgb *= inColor.rgb;
+#else
+	vec2 uv = inColor.xy;
+	diffuse.rgb *= mix(vec3(1.0,1.0,1.0), texture2D( TEXTURE_2, uv).rgb*2.0, inColor.b);
+	diffuse.rgb *= inColor.aaa;
+	diffuse.a = 1.0;
+#endif
+
+if ((waterFlag > 0.5 || isBlend) && !bool(underwater))
+{
+vec3 skyPos = reflectPos;
+vec3 reflectedCol = vec3(1.0, 1.0, 1.0);
+vec3 sunMoonPos = (time > 0.0 ? 1.0 : -1.0) * vec3(cos(time), sin(time), 0.0);
+
+#include "renderreflectedview.glsl"
+
+reflectedCol = mix(diffuse.rgb, reflectedCol, smoothstep(0.4, 1.0, uv1.y));
+
+diffuse.rgb = mix(diffuse.rgb, reflectedCol.rgb, reflectance);
+}
+
+#ifdef FOG
+	vec3 fogColor = mix(mix(nightFogCol, dayFogCol, daylight), setFogCol, set);
+	fogColor = mix(fogColor, vec3(rgb2luma(fogColor)), rain);
+	if (bool(underwater) || bool(nether))
+	{
+		fogColor = FOG_COLOR.rgb;
+	}
+	diffuse.rgb = mix( diffuse.rgb, fogColor, fogFactor );
+#endif
+
+	gl_FragColor = diffuse;
+	
+#endif // BYPASS_PIXEL_SHADER
+}
